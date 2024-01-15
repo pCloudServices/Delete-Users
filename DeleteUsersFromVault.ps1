@@ -408,19 +408,24 @@ Try{
     foreach ($user in $VaultUsersToDeleteFile){
         #Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
 	Try{
-           $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr
-           $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $UserDetails.Users.id) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR
+           $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr -Verbose
+           Write-LogMessage -type info -MSG "User id is: $($UserDetails.users.id)"
+
+           
+           $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $UserDetails.Users.id) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
 	   }
     	   Catch
 	   {
     	    Write-LogMessage -type Info -MSG "Couldn't delete user: $user ..."
             Write-LogMessage -type Error -Msg "Error: $(Collect-ExceptionMessage $_.exception.message $($_.ErrorDetails.Message) $($_.exception.status) $($_.exception.Response.ResponseUri.AbsoluteUri) $pvwaERR)"
 	   }
-           if($respDelete -eq $null){
+        Write-LogMessage -type -msg "Confirming user was deleted by getting user details"
+        $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr -Verbose
+           if($UserDetails.Total -eq 0){
                 Write-LogMessage -type Success -MSG "Successfully deleted user: $user"
            }
            Else{
-                Write-LogMessage -type Error -Msg "Unable to delete user: $user ERROR: $respDelete"
+                Write-LogMessage -type Error -Msg "Unable to delete user: $user ERROR: $UserDetails"
                 }
     }
     
