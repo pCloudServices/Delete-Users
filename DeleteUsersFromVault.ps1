@@ -399,6 +399,19 @@ Else{
     Exit
 }
 
+$UserDetails = @()
+if(($UserDetails.users.username).count -gt 1){
+    $i = 0
+    foreach ($user in $UserDetails){
+    if($user.users.username[$i] -eq $user){
+        $ExactUser = $user.users.id[$i]
+        }
+        $i += 1
+    }
+}
+Else{
+$ExactUser = $UserDetails.users.id
+}
 
 # Delete Action
 
@@ -406,11 +419,11 @@ Try{
     #Get Users from Vault
     $VaultUsersToDeleteFile = gc $(GetVaultUsersFile)
     foreach ($user in $VaultUsersToDeleteFile){
-        #Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
+        Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
 	Try{
-           $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)/") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr -Verbose
-           $UserDetails = $UserDetails | Where-Object {$_.Users.Username -eq $user}
-           Write-LogMessage -type info -MSG "User id is: $($UserDetails.users.id)"
+           $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr -Verbose
+           $Exact = $UserDetails.Users | Where-Object { $_.username -eq $user }
+           Write-LogMessage -type info -MSG "User id is: $($Exact.id)"
 
            $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $UserDetails.Users.id) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
 	   }
@@ -421,8 +434,8 @@ Try{
 	   }
         Write-LogMessage -type -msg "Confirming user was deleted by getting user details"
         $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr -Verbose
-        $UserDetails = $UserDetails | Where-Object {$_.Users.Username -eq $user}
-           if($UserDetails.Total -eq 0){
+        $Exact = $UserDetails.Users | Where-Object { $_.username -eq $user }
+           if($Exact -eq $null){
                 Write-LogMessage -type Success -MSG "Successfully deleted user: $user"
            }
            Else{
