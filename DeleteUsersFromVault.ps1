@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true, HelpMessage = "Specify the URL of the Privilege Cloud tenant (e.g., https://<subdomain>.cyberark.cloud)")]
     [string]$PortalURL,
-    [Parameter(Mandatory = $false, HelpMessage = "Specify the User that has permissions on both Identity User Management and Vault Audit User. (e.g. mike@cyberark.cloud.1022")]
+    [Parameter(Mandatory = $true, HelpMessage = "Specify the User that has permissions on both Identity User Management and Vault Audit User. (e.g. mike@cyberark.cloud.1022")]
     [PSCredential]$Credentials
 )
 
@@ -88,6 +88,31 @@ Function Get-IdentityURL($PortalURL){
         $response.Dispose()
         $client.Dispose()
     }
+}
+
+
+Function Get-PrivCloudURL(){
+    # grab the subdomain, depending how the user entered the url (hostname only or URL).
+    if($PortalURL -match "https://"){
+        $portalURL = ([System.Uri]$script:PortalURL).host
+        $script:portalSubDomainURL = $PortalURL.Split(".")[0]
+    }
+    Else{
+        $script:portalSubDomainURL = $PortalURL.Split(".")[0]
+    }
+    
+    # Check if standard or shared services implementation.
+    if($PortalURL -like "*.cyberark.com*"){
+        # Standard
+        $pvwaURL = "https://$portalSubDomainURL.privilegecloud.cyberark.com"
+    }
+    Else
+    {
+        # ispss
+        $pvwaURL = "https://$portalSubDomainURL.privilegecloud.cyberark.cloud"
+        $portalURL = "https://$portalSubDomainURL.cyberark.cloud"
+    }
+    return [PSCustomObject]@{pvwaURL = $pvwaURL; portalURL = $portalURL}
 }
 
 
@@ -380,23 +405,25 @@ Else{
 Try{
     #Get Users from Vault
     $VaultUsersToDeleteFile = gc $(GetVaultUsersFile)
-    $VaultUsersToDeleteFile = GetVaultUsersFile
     foreach ($user in $VaultUsersToDeleteFile){
-        Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
+        #Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
 	Try{
-	   $respUsers = @()
-           $respUsers = Invoke-RestMethod -Uri $($PVWA_GetUser -f $user) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR
+           $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable identityErr
+           $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $UserDetails.Users.id) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR
 	   }
     	   Catch
 	   {
     	    Write-LogMessage -type Info -MSG "Couldn't delete user: $user ..."
             Write-LogMessage -type Error -Msg "Error: $(Collect-ExceptionMessage $_.exception.message $($_.ErrorDetails.Message) $($_.exception.status) $($_.exception.Response.ResponseUri.AbsoluteUri) $pvwaERR)"
 	   }
-        $respUsers.Users.username
-        $VaultUsersAll += $respUsers.Users.username
+           if($respDelete -eq $null){
+                Write-LogMessage -type Success -MSG "Successfully deleted user: $user"
+           }
+           Else{
+                Write-LogMessage -type Error -Msg "Unable to delete user: $user ERROR: $respDelete"
+                }
     }
     
-  
 }Catch{
     Write-LogMessage -Type Error -Msg "Error: $(Collect-ExceptionMessage $_.exception.message $($_.ErrorDetails.Message) $($_.exception.status) $($_.exception.Response.ResponseUri.AbsoluteUri) $pvwaERR)"
 }
