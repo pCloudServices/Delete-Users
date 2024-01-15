@@ -399,19 +399,6 @@ Else{
     Exit
 }
 
-$UserDetails = @()
-if(($UserDetails.users.username).count -gt 1){
-    $i = 0
-    foreach ($user in $UserDetails){
-    if($user.users.username[$i] -eq $user){
-        $ExactUser = $user.users.id[$i]
-        }
-        $i += 1
-    }
-}
-Else{
-$ExactUser = $UserDetails.users.id
-}
 
 # Delete Action
 
@@ -425,7 +412,8 @@ Try{
            $Exact = $UserDetails.Users | Where-Object { $_.username -eq $user }
            Write-LogMessage -type info -MSG "User id is: $($Exact.id)"
 
-           $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $UserDetails.Users.id) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
+           Write-LogMessage -type Info -MSG "Deleting user $($exact.username)"
+           $respDelete = Invoke-RestMethod -Uri $($PVWA_GetUser -f $($Exact.id)) -Method Delete -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
 	   }
     	   Catch
 	   {
