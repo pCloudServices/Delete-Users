@@ -406,7 +406,7 @@ Try{
     #Get Users from Vault
     $VaultUsersToDeleteFile = gc $(GetVaultUsersFile)
     foreach ($user in $VaultUsersToDeleteFile){
-        Write-LogMessage -type Info -MSG "Deleting User: $user" -Early
+        Write-LogMessage -type Info -MSG "Getting details for User: $user" -Early
 	Try{
            $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
            $Exact = $UserDetails.Users | Where-Object { $_.username -eq $user }
@@ -420,7 +420,7 @@ Try{
     	    Write-LogMessage -type Info -MSG "Couldn't delete user: $user ..."
             Write-LogMessage -type Error -Msg "Error: $(Collect-ExceptionMessage $_.exception.message $($_.ErrorDetails.Message) $($_.exception.status) $($_.exception.Response.ResponseUri.AbsoluteUri) $pvwaERR)"
 	   }
-        Write-LogMessage -type -msg "Confirming user was deleted by getting user details"
+        Write-LogMessage -type Info -msg "Confirming user was deleted by getting user details"
         $UserDetails = Invoke-RestMethod -Uri ("$PVWA_GetallUsers"+"?filter=UserName&search=$($user)") -Method Get -ContentType "application/json" -Headers $IdentityHeaders -ErrorVariable pvwaERR -Verbose
         $Exact = $UserDetails.Users | Where-Object { $_.username -eq $user }
            if($Exact -eq $null){
